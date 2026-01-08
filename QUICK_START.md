@@ -13,16 +13,24 @@ After downloading this project, simply double-click `START_BIRD_TRACKER.cmd` to:
 
 ### If the window closes immediately
 
-If the CMD window disappears without doing anything:
+If the CMD window disappears without doing anything, try these in order:
 
-1. First, run `TEST_SETUP.cmd` to check your system
-2. This will show you exactly what's missing
-3. Or right-click `START_BIRD_TRACKER.cmd` and select "Edit" to see if there are any obvious path issues
+1. **Run `TEST_SETUP.cmd`** - Diagnostic tool that checks your system and shows what's wrong
+2. **Try `START_BIRD_TRACKER_VERBOSE.cmd`** - Simplified version with more debugging output
+3. **Right-click and "Run as Administrator"** - Sometimes permissions block execution
+4. **Extract from ZIP first** - Make sure you've extracted all files, don't run from inside ZIP
 
 The most common issues are:
-- Python or Node.js not installed
+- Python or Node.js not installed or not in PATH
+- Running from inside a ZIP file instead of extracting
+- Antivirus blocking execution
 - Not running from the correct folder (must be in project root)
-- Antivirus blocking the script
+
+### Available Scripts
+
+- **`START_BIRD_TRACKER.cmd`** - Main startup script (recommended)
+- **`START_BIRD_TRACKER_VERBOSE.cmd`** - Simplified version with extra debugging output
+- **`TEST_SETUP.cmd`** - System diagnostic tool
 
 ## Prerequisites
 
@@ -63,7 +71,9 @@ The startup script launches three processes:
 
 ```
 project/
-├── START_BIRD_TRACKER.cmd    # One-click startup script
+├── START_BIRD_TRACKER.cmd          # Main startup script
+├── START_BIRD_TRACKER_VERBOSE.cmd  # Verbose debug version
+├── TEST_SETUP.cmd                  # System diagnostics
 ├── scripts/
 │   ├── pilot_bird_counter_fixed.py      # Real-time bird detection
 │   ├── pilot_analyze_captures_fixed.py  # Image analysis

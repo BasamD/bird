@@ -1,12 +1,18 @@
 @echo off
-setlocal enabledelayedexpansion
+
+REM Change to script directory immediately
+cd /d "%~dp0"
 
 echo ================================
 echo Bird Tracker - One-Click Startup
 echo ================================
 echo.
+echo Project directory: %CD%
+echo.
 echo Starting checks...
 echo.
+
+setlocal enabledelayedexpansion
 
 REM Check Python installation
 echo Checking for Python...
@@ -139,11 +145,11 @@ if not exist "pilot_bird_counter_fixed.py" (
 )
 
 REM Start bird counter
-start "Bird Counter" cmd /c "python pilot_bird_counter_fixed.py & pause"
+start "Bird Counter" cmd /k "python pilot_bird_counter_fixed.py"
 timeout /t 2 /nobreak >nul
 
 REM Start analyzer (in watch mode)
-start "Bird Analyzer" cmd /c "python pilot_analyze_captures_fixed.py --watch & pause"
+start "Bird Analyzer" cmd /k "python pilot_analyze_captures_fixed.py --watch"
 timeout /t 2 /nobreak >nul
 
 echo Bird detection scripts started in separate windows
@@ -184,3 +190,8 @@ start http://localhost:8080
 
 REM Start Python HTTP server
 python -m http.server 8080
+
+REM If we get here, something went wrong
+echo.
+echo Server stopped. Press any key to exit.
+pause >nul
