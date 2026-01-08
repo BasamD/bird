@@ -31,6 +31,7 @@ The most common issues are:
 - **`START_BIRD_TRACKER.cmd`** - Main startup script (recommended)
 - **`START_BIRD_TRACKER_VERBOSE.cmd`** - Simplified version with extra debugging output
 - **`TEST_SETUP.cmd`** - System diagnostic tool
+- **`TEST_PYTHON_INSTALL.cmd`** - Tests Python package installation specifically
 
 ## Prerequisites
 

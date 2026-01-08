@@ -38,15 +38,29 @@ echo.
 echo [3/8] Installing Python requirements...
 cd /d "%~dp0scripts"
 echo Current directory: %CD%
-python -m pip install -r requirements.txt --quiet --disable-pip-version-check
+echo.
+echo Installing packages (this may take a minute)...
+echo.
+python -m pip install -r requirements.txt --disable-pip-version-check
 if errorlevel 1 (
     echo.
+    echo ================================
     echo ERROR: Failed to install Python packages
-    echo Try manually: cd scripts ^&^& pip install -r requirements.txt
+    echo ================================
+    echo.
+    echo Try running manually:
+    echo   cd scripts
+    echo   pip install -r requirements.txt
+    echo.
+    echo Common fixes:
+    echo - Close and reopen CMD to refresh Python
+    echo - Run as Administrator
+    echo - Update pip: python -m pip install --upgrade pip
     echo.
     pause
     exit /b 1
 )
+echo.
 echo Done
 echo.
 
