@@ -5,12 +5,17 @@ echo ================================
 echo Bird Tracker - One-Click Startup
 echo ================================
 echo.
+echo Starting checks...
+echo.
 
 REM Check Python installation
+echo Checking for Python...
 python --version >nul 2>&1
 if errorlevel 1 (
+    echo.
     echo ERROR: Python is not installed or not in PATH
     echo Please install Python 3.8+ from https://www.python.org/downloads/
+    echo.
     pause
     exit /b 1
 )
@@ -19,10 +24,13 @@ echo [1/8] Python found
 python --version
 
 REM Check Node/npm installation
-npm --version >nul 2>&1
+echo Checking for npm...
+call npm --version >nul 2>&1
 if errorlevel 1 (
+    echo.
     echo ERROR: npm is not installed or not in PATH
     echo Please install Node.js from https://nodejs.org/
+    echo.
     pause
     exit /b 1
 )
@@ -34,13 +42,22 @@ REM Install Python requirements
 echo.
 echo [3/8] Installing Python requirements...
 cd /d "%~dp0scripts"
-python -m pip install -r requirements.txt --quiet --disable-pip-version-check
-if errorlevel 1 (
-    echo ERROR: Failed to install Python requirements
+if not exist "requirements.txt" (
+    echo ERROR: requirements.txt not found in scripts folder
+    echo Current directory: %CD%
     pause
     exit /b 1
 )
-echo Python requirements installed
+python -m pip install -r requirements.txt --quiet --disable-pip-version-check
+if errorlevel 1 (
+    echo.
+    echo ERROR: Failed to install Python requirements
+    echo Try running manually: cd scripts ^&^& pip install -r requirements.txt
+    echo.
+    pause
+    exit /b 1
+)
+echo Python requirements installed successfully
 
 REM Check for OpenAI API key
 echo.
@@ -62,15 +79,26 @@ if "%OPENAI_API_KEY%"=="" (
 
 REM Install npm dependencies if needed
 cd /d "%~dp0"
+echo.
+echo Current directory: %CD%
+if not exist "package.json" (
+    echo ERROR: package.json not found
+    pause
+    exit /b 1
+)
 if not exist "node_modules" (
     echo.
-    echo [5/8] Installing npm dependencies...
+    echo [5/8] Installing npm dependencies (this may take a few minutes)...
     call npm install
     if errorlevel 1 (
+        echo.
         echo ERROR: Failed to install npm dependencies
+        echo Try running manually: npm install
+        echo.
         pause
         exit /b 1
     )
+    echo npm dependencies installed successfully
 ) else (
     echo [5/8] npm dependencies already installed
 )
@@ -91,7 +119,10 @@ echo.
 echo [7/8] Building dashboard...
 call npm run build
 if errorlevel 1 (
+    echo.
     echo ERROR: Failed to build dashboard
+    echo Try running manually: npm run build
+    echo.
     pause
     exit /b 1
 )
@@ -101,13 +132,18 @@ REM Start the Python scripts in background
 echo.
 echo [8/9] Starting bird detection scripts...
 cd /d "%~dp0scripts"
+if not exist "pilot_bird_counter_fixed.py" (
+    echo ERROR: pilot_bird_counter_fixed.py not found in scripts folder
+    pause
+    exit /b 1
+)
 
 REM Start bird counter
-start "Bird Counter" cmd /c "python pilot_bird_counter_fixed.py"
+start "Bird Counter" cmd /c "python pilot_bird_counter_fixed.py & pause"
 timeout /t 2 /nobreak >nul
 
 REM Start analyzer (in watch mode)
-start "Bird Analyzer" cmd /c "python pilot_analyze_captures_fixed.py --watch"
+start "Bird Analyzer" cmd /c "python pilot_analyze_captures_fixed.py --watch & pause"
 timeout /t 2 /nobreak >nul
 
 echo Bird detection scripts started in separate windows
@@ -116,6 +152,9 @@ REM Start web server for dashboard
 echo.
 echo [9/9] Starting dashboard server...
 cd /d "%~dp0public"
+if not exist "dashboard.html" (
+    echo WARNING: dashboard.html not found, but continuing...
+)
 
 echo.
 echo ================================

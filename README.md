@@ -9,6 +9,8 @@ After downloading this project:
 ### Windows
 Double-click **`START_BIRD_TRACKER.cmd`**
 
+If it closes immediately, run **`TEST_SETUP.cmd`** first to diagnose the issue.
+
 ### Mac/Linux
 Run **`./START_BIRD_TRACKER.sh`**
 

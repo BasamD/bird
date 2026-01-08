@@ -11,6 +11,19 @@ After downloading this project, simply double-click `START_BIRD_TRACKER.cmd` to:
 5. Start bird detection scripts
 6. Launch the dashboard in your browser at http://localhost:8080
 
+### If the window closes immediately
+
+If the CMD window disappears without doing anything:
+
+1. First, run `TEST_SETUP.cmd` to check your system
+2. This will show you exactly what's missing
+3. Or right-click `START_BIRD_TRACKER.cmd` and select "Edit" to see if there are any obvious path issues
+
+The most common issues are:
+- Python or Node.js not installed
+- Not running from the correct folder (must be in project root)
+- Antivirus blocking the script
+
 ## Prerequisites
 
 Before running, make sure you have:
