@@ -2,10 +2,10 @@ import os
 from pathlib import Path
 
 BASE_DIR = Path(__file__).parent.parent
-CAPTURE_ROOT = Path(os.getenv("CAPTURE_ROOT", BASE_DIR / "pilot_captures"))
-REPORT_ROOT = Path(os.getenv("REPORT_ROOT", BASE_DIR / "pilot_reports"))
-LOG_ROOT = Path(os.getenv("LOG_ROOT", BASE_DIR / "pilot_logs"))
 DASHBOARD_DIR = Path(os.getenv("DASHBOARD_DIR", BASE_DIR / "public"))
+CAPTURE_ROOT = Path(os.getenv("CAPTURE_ROOT", DASHBOARD_DIR / "pilot_captures"))
+REPORT_ROOT = Path(os.getenv("REPORT_ROOT", DASHBOARD_DIR / "pilot_reports"))
+LOG_ROOT = Path(os.getenv("LOG_ROOT", BASE_DIR / "pilot_logs"))
 
 METRICS_FILE = DASHBOARD_DIR / "metrics.json"
 DASHBOARD_FILE = DASHBOARD_DIR / "dashboard.html"
