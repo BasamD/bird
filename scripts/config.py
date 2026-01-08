@@ -1,7 +1,11 @@
 import os
 from pathlib import Path
+from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).parent.parent
+
+# Load environment variables from .env file
+load_dotenv(BASE_DIR / ".env")
 DASHBOARD_DIR = Path(os.getenv("DASHBOARD_DIR", BASE_DIR / "public"))
 CAPTURE_ROOT = Path(os.getenv("CAPTURE_ROOT", DASHBOARD_DIR / "pilot_captures"))
 REPORT_ROOT = Path(os.getenv("REPORT_ROOT", DASHBOARD_DIR / "pilot_reports"))
