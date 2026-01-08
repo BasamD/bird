@@ -138,18 +138,30 @@ REM Start the Python scripts in background
 echo.
 echo [8/9] Starting bird detection scripts...
 cd /d "%~dp0scripts"
+echo Current scripts directory: %CD%
+echo.
+
 if not exist "pilot_bird_counter_fixed.py" (
     echo ERROR: pilot_bird_counter_fixed.py not found in scripts folder
+    echo Files in scripts folder:
+    dir /b
+    echo.
     pause
     exit /b 1
 )
 
-REM Start bird counter
-start "Bird Counter" cmd /k "python pilot_bird_counter_fixed.py"
+echo Checking Python scripts before launching...
+python pilot_bird_counter_fixed.py --help >nul 2>&1
+if errorlevel 1 (
+    echo WARNING: Bird counter script may have issues
+)
+
+echo Starting Bird Counter in new window...
+start "Bird Counter" cmd /k "echo Bird Counter Window && echo. && cd /d "%~dp0scripts" && python pilot_bird_counter_fixed.py || (echo. && echo ERROR: Bird counter failed to start && echo. && pause)"
 timeout /t 2 /nobreak >nul
 
-REM Start analyzer (in watch mode)
-start "Bird Analyzer" cmd /k "python pilot_analyze_captures_fixed.py --watch"
+echo Starting Bird Analyzer in new window...
+start "Bird Analyzer" cmd /k "echo Bird Analyzer Window && echo. && cd /d "%~dp0scripts" && python pilot_analyze_captures_fixed.py --watch || (echo. && echo ERROR: Bird analyzer failed to start && echo. && pause)"
 timeout /t 2 /nobreak >nul
 
 echo Bird detection scripts started in separate windows
@@ -157,9 +169,28 @@ echo Bird detection scripts started in separate windows
 REM Start web server for dashboard
 echo.
 echo [9/9] Starting dashboard server...
-cd /d "%~dp0public"
-if not exist "dashboard.html" (
-    echo WARNING: dashboard.html not found, but continuing...
+cd /d "%~dp0"
+echo Dashboard directory: %CD%
+echo.
+
+if not exist "public\dashboard.html" (
+    echo WARNING: public\dashboard.html not found
+    echo Checking dist folder...
+    if exist "dist\dashboard.html" (
+        echo Found dashboard in dist folder
+        cd dist
+    ) else (
+        echo ERROR: No dashboard.html found in public or dist
+        echo Files in public:
+        dir /b public 2>nul
+        echo Files in dist:
+        dir /b dist 2>nul
+        echo.
+        echo Dashboard may not work properly
+        pause
+    )
+) else (
+    cd public
 )
 
 echo.
@@ -170,6 +201,8 @@ echo.
 echo Bird Counter: Running (separate window)
 echo Bird Analyzer: Running (separate window)
 echo Dashboard: http://localhost:8080
+echo.
+echo Current serving directory: %CD%
 echo.
 echo The dashboard will open in your browser in 3 seconds...
 echo.
@@ -186,12 +219,20 @@ REM Wait a moment for Python scripts to initialize
 timeout /t 3 /nobreak >nul
 
 REM Open browser
+echo Opening browser to http://localhost:8080
 start http://localhost:8080
 
 REM Start Python HTTP server
+echo Starting HTTP server on port 8080...
+echo.
 python -m http.server 8080
 
-REM If we get here, something went wrong
+REM If we get here, the server stopped
 echo.
-echo Server stopped. Press any key to exit.
-pause >nul
+echo ================================
+echo Server stopped or failed to start
+echo ================================
+echo.
+echo Check the error messages above for details
+echo.
+pause
