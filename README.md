@@ -1,188 +1,136 @@
 # Bird Feeder Tracker
 
-Automated bird feeder monitoring system with AI-powered species identification and real-time web dashboard.
+AI-powered bird feeder monitoring system with real-time species identification and web dashboard.
 
-## One-Click Setup
+## Features
 
-After downloading this project:
+- **Real-time Bird Detection** - YOLOv8 computer vision on RTSP camera feed
+- **AI Species Identification** - OpenAI GPT-4 Vision analyzes each visitor
+- **Live Web Dashboard** - React dashboard with real-time updates
+- **Visit Tracking** - Smart logic to track unique bird visits
+- **Cloud Storage** - Supabase database and image storage
+- **Health Monitoring** - System status and error tracking
 
-### Windows
-Double-click **`START_BIRD_TRACKER.cmd`**
+## Quick Start
 
-If it closes immediately, run **`TEST_SETUP.cmd`** first to diagnose the issue.
+**Get running in 5 minutes:** See [QUICKSTART.md](QUICKSTART.md)
 
-### Mac/Linux
-Run **`./START_BIRD_TRACKER.sh`**
+### Prerequisites
 
-That's it! The startup script will:
-- Check and install all Python requirements
-- Install npm dependencies if needed
-- Build the dashboard
-- Start bird detection scripts
-- Launch the web dashboard in your browser at http://localhost:8080
+- Python 3.8+
+- Node.js 16+
+- RTSP network camera
+- OpenAI API key (already configured in `.env`)
+- Supabase account (already set up)
 
-## Prerequisites
+### Installation
 
-- **Python 3.8+** ([download](https://www.python.org/downloads/))
-- **Node.js 16+** ([download](https://nodejs.org/))
-- **OpenAI API key** (optional but recommended for species identification)
-- **Network camera with RTSP support**
+1. **Configure Supabase service key** (required)
+   - Get your service role key from Supabase dashboard
+   - Add it to `.env` file (see QUICKSTART.md)
 
-## Quick Configuration
+2. **Create storage bucket** (required)
+   - Create `bird-captures` bucket in Supabase
+   - Make it public (see QUICKSTART.md)
 
-Before running, edit **`scripts/config.py`** to set your camera URL:
+3. **Install backend dependencies**
+   ```bash
+   cd backend
+   pip install -r requirements.txt
+   ```
 
-```python
-RTSP_URL = "rtsp://username:password@ip:port/path"
-ROI_NORM = (0.25, 0.34, 0.62, 0.72)  # Region where feeder is located
-OPENAI_API_KEY = "sk-..."  # Or set as environment variable
+4. **Install frontend dependencies**
+   ```bash
+   npm install
+   ```
+
+### Running
+
+**Backend** (Terminal 1):
+```bash
+cd backend
+python main.py
 ```
 
-## What This Does
+**Frontend** (Terminal 2):
+```bash
+npm run dev
+```
 
-This system:
-- Connects to your RTSP camera and watches for birds in real-time
-- Detects birds automatically using YOLOv8 AI
-- Captures high-quality photos when birds visit
-- Identifies species using OpenAI GPT-4o-mini
-- Displays everything on a beautiful web dashboard with visit history
+Visit **http://localhost:5173** to see your dashboard!
 
-## Fixed Scripts
+## Project Structure
 
-The original Python scripts had **16+ critical bugs**. This project uses the fixed versions:
-- ✅ OpenAI API calls (completely broken)
-- ✅ Thread safety issues (race conditions)
-- ✅ Security vulnerabilities (exposed API keys)
-- ✅ Cross-platform compatibility (Windows-only paths)
-- ✅ Image processing bugs (false positives, missing detections)
-- ✅ Error handling (crashes on common errors)
+```
+backend/           - Python backend service
+  ├── main.py           - FastAPI server & main entry point
+  ├── bird_detector.py  - YOLO bird detection
+  ├── species_analyzer.py - OpenAI species identification
+  ├── state_machine.py  - Visit tracking logic
+  └── config.py         - Configuration management
 
-**See `scripts/BUGFIXES.md` for full details.**
+src/              - React frontend
+  └── App.tsx          - Dashboard UI
+
+supabase/         - Database migrations
+  └── migrations/      - SQL schema files
+
+.env              - Configuration (API keys, camera URL, settings)
+```
+
+## Configuration
+
+All settings are in `.env`:
+
+- **Camera**: `RTSP_URL` - Your camera's RTSP stream URL
+- **OpenAI**: `OPENAI_API_KEY` - API key for species identification
+- **Supabase**: Database and storage credentials
+- **Detection**: Confidence thresholds, ROI, intervals
+- **Visit Logic**: Timeouts, cooldowns, capture limits
 
 ## Documentation
 
-- **[QUICK_START.md](QUICK_START.md)** - Simple user guide for getting started
-- **[PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md)** - Complete technical documentation
-- **[scripts/SETUP_GUIDE.md](scripts/SETUP_GUIDE.md)** - Detailed setup instructions
-- **[scripts/BUGFIXES.md](scripts/BUGFIXES.md)** - List of bugs that were fixed
-- **[scripts/SUMMARY.md](scripts/SUMMARY.md)** - Project summary
-
-## File Structure
-
-```
-START_BIRD_TRACKER.cmd          # Windows one-click startup
-START_BIRD_TRACKER.sh           # Mac/Linux one-click startup
-scripts/
-  ├── pilot_bird_counter_fixed.py      # Real-time detection
-  ├── pilot_analyze_captures_fixed.py  # Image analysis
-  ├── config.py                        # Configuration
-  └── requirements.txt                 # Python dependencies
-public/
-  ├── metrics.json                     # Bird visit data (JSON)
-  ├── dashboard.html                   # Generated HTML dashboard
-  ├── pilot_captures/                  # Captured images (organized by date)
-  └── pilot_reports/                   # Analysis reports (organized by date)
-src/
-  └── App.tsx                          # React dashboard source
-dist/
-  └── ...                              # Built React app
-```
+- **[QUICKSTART.md](QUICKSTART.md)** - 5-minute setup guide
+- **[SETUP_INSTRUCTIONS.md](SETUP_INSTRUCTIONS.md)** - Detailed setup and troubleshooting
+- **[BIRD_TRACKER_PRD.md](BIRD_TRACKER_PRD.md)** - Complete system documentation
 
 ## How It Works
 
-1. **Bird Counter** (`pilot_bird_counter_fixed.py`) connects to your camera via RTSP
-2. YOLOv8 AI detects birds in real-time within the configured region
-3. When a bird visits, it captures a high-quality photo
-4. **Bird Analyzer** (`pilot_analyze_captures_fixed.py`) processes new images
-5. OpenAI GPT-4o-mini identifies the species and provides a description
-6. Results are saved to `metrics.json` and `public/pilot_reports/`
-7. Dashboard displays everything with photos, species counts, and visit history
-8. Dashboard auto-refreshes every 30 seconds
+1. **Detection**: YOLO model analyzes camera feed for birds in defined ROI
+2. **Visit Start**: First detection starts a new visit (unique ID generated)
+3. **Capture**: Photos taken at intervals during the visit
+4. **Visit End**: Visit ends after bird leaves (5 second grace period)
+5. **Analysis**: OpenAI analyzes photos to identify species
+6. **Storage**: Data saved to Supabase, images to cloud storage
+7. **Dashboard**: Real-time updates via polling
 
-## Manual Setup (if not using startup script)
+## Important Files to Keep
 
-```bash
-# Install Python requirements
-cd scripts
-pip install -r requirements.txt
-
-# Set API key
-export OPENAI_API_KEY="your-key-here"  # Mac/Linux
-set OPENAI_API_KEY=your-key-here       # Windows
-
-# Run Python scripts
-python pilot_bird_counter_fixed.py     # Terminal 1
-python pilot_analyze_captures_fixed.py --watch  # Terminal 2
-
-# Install npm dependencies and build
-npm install
-npm run build
-
-# Serve dashboard
-cd public
-python -m http.server 8080  # Open http://localhost:8080
-```
-
-## Dashboard Features
-
-- Total bird visits counter
-- Species breakdown with counts (sorted by frequency)
-- Visit history table with timestamps, species, and photos
-- Links to detailed analysis reports for each visit
-- Auto-refresh every 30 seconds
-- Responsive design for desktop and mobile
-- Image fallback for missing photos
-
-## Stopping the System
-
-**Windows**: Close all three command windows (main + Bird Counter + Bird Analyzer)
-
-**Mac/Linux**: Press Ctrl+C in the terminal, or: `kill <PID>` (PIDs shown at startup)
+The following contain your API keys and settings:
+- `.env` - OpenAI API key and RTSP camera URL
 
 ## Troubleshooting
 
-### Camera Not Connecting
-- Verify RTSP URL in VLC: Media → Open Network Stream
-- Check username/password are correct
-- Ensure camera is on the same network
-- Try different subtype values (0 or 1)
+### Camera not connecting
+- Check RTSP URL in `.env`
+- Verify camera is on network
+- Test with: `ffplay <your-rtsp-url>`
 
-### No Birds Detected
-- Watch the live preview window - is the feeder visible?
-- Adjust `ROI_NORM` in `config.py` to cover the feeder area
-- Try lowering `CONF_THRESH` to 0.15-0.20
-- Ensure good lighting
+### No detections
+- Adjust ROI settings in `.env` to match feeder location
+- Lower `CONFIDENCE_THRESHOLD` (try 0.15)
+- Check backend logs for errors
 
-### OpenAI Errors
-- Verify API key: https://platform.openai.com/api-keys
-- Check account has credits
-- System works without OpenAI but won't identify species
+### Database errors
+- Verify Supabase service role key in `.env`
+- Check bucket `bird-captures` exists and is public
+- See SETUP_INSTRUCTIONS.md for details
 
-### Dashboard Not Loading
-- Check port 8080 is not in use
-- Verify build completed: `npm run build`
+### Dashboard not updating
+- Check backend is running on port 8000
 - Check browser console for errors
-- Ensure `public/metrics.json` exists
+- Verify API calls to localhost:8000/health work
 
-### High CPU Usage
-- Increase `DETECTION_INTERVAL` to 1.0 in `config.py`
-- Use smaller YOLO model: `yolov8n.pt`
-- Reduce `VIEW_SCALE` to 0.4
+## License
 
-## Cost Estimate
-
-- **OpenAI API**: ~$0.01 per 100 bird identifications (GPT-4o-mini)
-- **Storage**: ~500KB per captured image
-- **Compute**: Minimal (runs on most laptops)
-
-## Tips
-
-- Test for 30 minutes before leaving overnight
-- Best results with good lighting (daylight or artificial)
-- Position camera so feeder fills 40-70% of frame
-- Check `pilot_logs/` for detailed debug information
-- Monitor API usage to avoid unexpected costs
-
----
-
-Built with YOLOv8, OpenAI GPT-4o-mini, React, TailwindCSS, and Vite
+MIT
