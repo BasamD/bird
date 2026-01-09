@@ -42,7 +42,7 @@ except ImportError:
         METRICS_FILE = DASHBOARD_DIR / "metrics.json"
         RTSP_URL = "rtsp://admin:admin@192.168.1.79:554/cam/realmonitor?channel=1&subtype=0&unicast=true&proto=Onvif"
         MODEL_PATH = "yolov8n.pt"
-        OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+        OPENAI_API_KEY = "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"
         CONF_THRESH = 0.25
         ROI_NORM = (0.25, 0.34, 0.62, 0.72)
         DETECT_RESIZE_WIDTH = 960
@@ -88,16 +88,31 @@ def ensure_dir(path: Path) -> None:
 
 
 def load_openai_client() -> Tuple[Optional[Any], str]:
+    """Initialize OpenAI client with hardcoded fallback key."""
+    # Try config first, then hardcoded fallback
     key = config.OPENAI_API_KEY
     if not key:
+        key = "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"
+
+    if not key:
+        if logger:
+            logger.error("No OpenAI API key found in config or hardcoded fallback")
         return None, ""
+
     try:
         from openai import OpenAI
-        client = OpenAI(api_key=key)
+        # Initialize with explicit timeout and max retries
+        client = OpenAI(
+            api_key=key,
+            timeout=30.0,
+            max_retries=3
+        )
+        if logger:
+            logger.info(f"OpenAI client initialized successfully (key: {key[:8]}...{key[-8:]})")
         return client, key
     except Exception as e:
         if logger:
-            logger.error(f"[OpenAI] init failed: {e}")
+            logger.error(f"OpenAI import/init failed: {e}")
         return None, key
 
 
@@ -278,6 +293,7 @@ def update_metrics(image_path: Path, species: str, summary: str, timestamp: date
 def openai_analyze_image(
     client, api_key: str, image_path: Path, boxes: Optional[List[Tuple[int, int, int, int]]] = None
 ) -> dict:
+    """Analyze bird image using OpenAI Vision API with retry logic."""
     result: dict = {
         "ok": False,
         "error": None,
@@ -287,7 +303,9 @@ def openai_analyze_image(
     }
 
     if client is None:
-        result["error"] = "OpenAI disabled"
+        result["error"] = "OpenAI client not initialized"
+        if logger:
+            logger.warning("OpenAI analyze called but client is None")
         return result
 
     def _expand_bbox(
@@ -318,81 +336,112 @@ def openai_analyze_image(
             new_h = int(h * target / w)
         return cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_AREA)
 
-    try:
-        if boxes:
-            full_img = cv2.imread(str(image_path))
-            if full_img is not None and len(boxes) > 0:
-                largest = max(boxes, key=lambda b: (b[2] - b[0]) * (b[3] - b[1]))
-                ex_bbox = _expand_bbox(largest, full_img.shape[:2], margin_ratio=0.1)
-                x0, y0, x1, y1 = ex_bbox
-                crop = full_img[y0:y1, x0:x1]
-                crop = _resize_to_tile(crop)
-                _, buf = cv2.imencode(".jpg", crop)
-                img_bytes = buf.tobytes()
-                if logger:
-                    logger.debug(f"Cropped image using bbox {largest}, size {crop.shape}")
+    # Retry logic for transient failures
+    max_attempts = 3
+    for attempt in range(max_attempts):
+        try:
+            # Prepare image data (crop to bird if boxes provided)
+            if boxes:
+                full_img = cv2.imread(str(image_path))
+                if full_img is not None and len(boxes) > 0:
+                    largest = max(boxes, key=lambda b: (b[2] - b[0]) * (b[3] - b[1]))
+                    ex_bbox = _expand_bbox(largest, full_img.shape[:2], margin_ratio=0.1)
+                    x0, y0, x1, y1 = ex_bbox
+                    crop = full_img[y0:y1, x0:x1]
+                    crop = _resize_to_tile(crop)
+                    _, buf = cv2.imencode(".jpg", crop)
+                    img_bytes = buf.tobytes()
+                    if logger:
+                        logger.debug(f"Cropped image using bbox {largest}, size {crop.shape}")
+                else:
+                    img_bytes = image_path.read_bytes()
             else:
                 img_bytes = image_path.read_bytes()
-        else:
-            img_bytes = image_path.read_bytes()
 
-        b64 = base64.b64encode(img_bytes).decode("ascii")
+            b64 = base64.b64encode(img_bytes).decode("ascii")
 
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": "Analyze this bird feeder image. Return JSON with: birds_present (bool), count (int), species_guess (string), summary (string). Provide your best species guess; use 'unknown' only if truly uncertain."
-                        },
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/jpeg;base64,{b64}"
+            # Call OpenAI Vision API
+            if logger and attempt > 0:
+                logger.info(f"[OpenAI] Retry attempt {attempt + 1}/{max_attempts}")
+
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": "Analyze this bird feeder image. Return JSON with: birds_present (bool), count (int), species_guess (string), summary (string). Provide your best species guess; use 'unknown' only if truly uncertain."
+                            },
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:image/jpeg;base64,{b64}"
+                                }
                             }
-                        }
-                    ]
-                }
-            ],
-            max_tokens=300
-        )
+                        ]
+                    }
+                ],
+                max_tokens=300
+            )
 
-        text = response.choices[0].message.content.strip()
-        result["raw"] = text
-        cleaned = text
+            text = response.choices[0].message.content.strip()
+            result["raw"] = text
+            cleaned = text
 
-        if cleaned.startswith("```"):
-            cleaned = cleaned.strip("`")
-            cleaned = cleaned.replace("json", "", 1).strip()
+            if cleaned.startswith("```"):
+                cleaned = cleaned.strip("`")
+                cleaned = cleaned.replace("json", "", 1).strip()
 
-        parsed = None
-        try:
-            parsed = json.loads(cleaned)
-        except Exception:
-            start = cleaned.find("{")
-            end = cleaned.rfind("}")
-            if start != -1 and end != -1 and end > start:
-                try:
-                    parsed = json.loads(cleaned[start : end + 1])
-                except Exception:
-                    parsed = None
+            parsed = None
+            try:
+                parsed = json.loads(cleaned)
+            except Exception:
+                start = cleaned.find("{")
+                end = cleaned.rfind("}")
+                if start != -1 and end != -1 and end > start:
+                    try:
+                        parsed = json.loads(cleaned[start : end + 1])
+                    except Exception:
+                        parsed = None
 
-        if isinstance(parsed, dict):
-            result["ok"] = True
-            result["summary"] = parsed.get("summary")
-            result["species_guess"] = parsed.get("species_guess")
-        else:
-            result["ok"] = True
-            result["summary"] = text
-            result["species_guess"] = None
+            if isinstance(parsed, dict):
+                result["ok"] = True
+                result["summary"] = parsed.get("summary")
+                result["species_guess"] = parsed.get("species_guess")
+            else:
+                result["ok"] = True
+                result["summary"] = text
+                result["species_guess"] = None
 
-    except Exception as e:
-        result["error"] = str(e)
-        if logger:
-            logger.error(f"[OpenAI] request failed: {e}")
+            if logger:
+                logger.info(f"[OpenAI] Successfully identified: {result.get('species_guess', 'unknown')}")
+            return result
+
+        except Exception as e:
+            error_str = str(e)
+            if logger:
+                logger.error(f"[OpenAI] Attempt {attempt + 1}/{max_attempts} failed: {repr(e)}")
+
+            # Check if it's a fatal error (don't retry)
+            if "401" in error_str or "invalid_api_key" in error_str:
+                if logger:
+                    logger.error("[OpenAI] Fatal error - invalid API key, not retrying")
+                result["error"] = f"Invalid API key: {error_str}"
+                return result
+
+            # If not the last attempt, wait before retry
+            if attempt < max_attempts - 1:
+                wait_time = (attempt + 1) * 2  # Progressive backoff: 2s, 4s, 6s
+                if logger:
+                    logger.info(f"[OpenAI] Waiting {wait_time}s before retry...")
+                time.sleep(wait_time)
+            else:
+                # Last attempt failed
+                if logger:
+                    logger.error(f"[OpenAI] All {max_attempts} attempts failed")
+                result["error"] = f"Failed after {max_attempts} attempts: {error_str}"
 
     return result
 
