@@ -17,11 +17,11 @@ echo Logging to: startup_log.txt
 echo.
 
 REM Change to script directory immediately
-echo Changing to project directory... | tee -a "%LOGFILE%"
+echo Changing to project directory...
 echo Changing to project directory... >> "%LOGFILE%"
 cd /d "%~dp0"
 if errorlevel 1 (
-    echo ERROR: Failed to change directory | tee -a "%LOGFILE%"
+    echo ERROR: Failed to change directory
     echo ERROR: Failed to change directory >> "%LOGFILE%"
     echo Attempted path: %~dp0 >> "%LOGFILE%"
     echo. >> "%LOGFILE%"
