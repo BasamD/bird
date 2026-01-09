@@ -8,6 +8,29 @@
 
 **Completely rewrote the startup script** with comprehensive error handling and verbose logging.
 
+## Latest Update: File Logging
+
+**NEW:** Complete logging to `startup_log.txt`
+
+Every step is now logged to a file, including:
+- All command outputs
+- Error messages
+- Timestamps
+- Directory changes
+- Package installations
+
+**View the log:**
+```cmd
+VIEW_LOG.cmd
+```
+
+**Keep window open after completion:**
+```cmd
+KEEP_WINDOW_OPEN.cmd
+```
+
+This solves the problem where the window closes before you can read what happened.
+
 ## What Was Fixed
 
 ### 1. Window Disappearing (FIXED)

@@ -1,8 +1,32 @@
 # Troubleshooting Guide
 
+## Logging to File
+
+**NEW:** The startup script now logs everything to `startup_log.txt`
+
+Every time you run `START_BIRD_TRACKER.cmd`, it creates a detailed log file showing:
+- Timestamps for when it started
+- Every step of the process
+- All output from commands (Python, npm, etc.)
+- Any errors that occurred
+- When the server stopped
+
+**To view the log:**
+```cmd
+VIEW_LOG.cmd
+```
+
+Or just open `startup_log.txt` in Notepad.
+
+**If the window closes too fast:**
+```cmd
+KEEP_WINDOW_OPEN.cmd
+```
+This wrapper keeps the window open even after the script finishes.
+
 ## START_BIRD_TRACKER.cmd Window Closes Immediately
 
-The startup script has been **completely rewritten** with verbose logging. Now you'll see:
+The startup script has been **completely rewritten** with verbose logging and file logging. Now you'll see:
 
 1. **Detailed progress** at every step
 2. **Clear error messages** if something fails
