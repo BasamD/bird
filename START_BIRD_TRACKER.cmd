@@ -1,69 +1,116 @@
 @echo off
-
-REM Change to script directory immediately
-cd /d "%~dp0"
-
+echo.
 echo ================================
 echo Bird Tracker - One-Click Startup
 echo ================================
 echo.
+
+REM Change to script directory immediately
+echo Changing to project directory...
+cd /d "%~dp0"
+if errorlevel 1 (
+    echo ERROR: Failed to change directory
+    echo Attempted path: %~dp0
+    pause
+    exit /b 1
+)
 echo Project directory: %CD%
-echo.
-echo Starting checks...
 echo.
 
 setlocal enabledelayedexpansion
+if errorlevel 1 (
+    echo ERROR: Failed to enable delayed expansion
+    pause
+    exit /b 1
+)
 
 REM Check Python installation
-echo Checking for Python...
-python --version >nul 2>&1
+echo [1/8] Checking for Python...
+where python >nul 2>&1
 if errorlevel 1 (
     echo.
-    echo ERROR: Python is not installed or not in PATH
+    echo ================================
+    echo ERROR: Python is NOT installed or not in PATH
+    echo ================================
+    echo.
     echo Please install Python 3.8+ from https://www.python.org/downloads/
+    echo Make sure to check "Add Python to PATH" during installation
+    echo.
+    echo After installing, restart this script
     echo.
     pause
     exit /b 1
 )
 
-echo [1/8] Python found
+echo Python found:
 python --version
+echo Location:
+where python
+echo.
 
 REM Check Node/npm installation
-echo Checking for npm...
-call npm --version >nul 2>&1
+echo [2/8] Checking for npm...
+where npm >nul 2>&1
 if errorlevel 1 (
     echo.
-    echo ERROR: npm is not installed or not in PATH
+    echo ================================
+    echo ERROR: npm is NOT installed or not in PATH
+    echo ================================
+    echo.
     echo Please install Node.js from https://nodejs.org/
     echo.
+    echo After installing, restart this script
+    echo.
     pause
     exit /b 1
 )
 
-echo [2/8] npm found
-npm --version
+echo npm found:
+call npm --version
+echo.
 
 REM Install Python requirements
-echo.
 echo [3/8] Installing Python requirements...
+echo Changing to scripts directory...
 cd /d "%~dp0scripts"
 if not exist "requirements.txt" (
-    echo ERROR: requirements.txt not found in scripts folder
+    echo.
+    echo ================================
+    echo ERROR: requirements.txt not found
+    echo ================================
+    echo.
     echo Current directory: %CD%
+    echo Expected file: %CD%\requirements.txt
+    echo.
     pause
     exit /b 1
 )
-python -m pip install -r requirements.txt --quiet --disable-pip-version-check
+
+echo Installing: opencv-python, ultralytics, openai, numpy, python-dotenv
+echo This may take 30-60 seconds...
+echo.
+
+python -m pip install -r requirements.txt --disable-pip-version-check
 if errorlevel 1 (
     echo.
-    echo ERROR: Failed to install Python requirements
-    echo Try running manually: cd scripts ^&^& pip install -r requirements.txt
+    echo ================================
+    echo ERROR: Failed to install Python packages
+    echo ================================
+    echo.
+    echo Try manually:
+    echo   cd scripts
+    echo   pip install -r requirements.txt
+    echo.
+    echo Common fixes:
+    echo - Run as Administrator
+    echo - Update pip: python -m pip install --upgrade pip
+    echo - Check internet connection
     echo.
     pause
     exit /b 1
 )
-echo Python requirements installed successfully
+echo Python packages installed successfully
+echo.
 
 REM Check for OpenAI API key
 echo.
@@ -156,15 +203,19 @@ if errorlevel 1 (
     echo WARNING: Bird counter script may have issues
 )
 
-echo Starting Bird Counter in new window...
-start "Bird Counter" cmd /k "echo Bird Counter Window && echo. && cd /d "%~dp0scripts" && python pilot_bird_counter_fixed.py || (echo. && echo ERROR: Bird counter failed to start && echo. && pause)"
+echo.
+echo Launching Bird Counter in new window...
+start "Bird Counter [DO NOT CLOSE]" cmd /k "cd /d "%~dp0scripts" && echo =============================== && echo BIRD COUNTER && echo =============================== && echo. && echo Starting bird detection... && echo Press Ctrl+C to stop && echo. && python pilot_bird_counter_fixed.py || (echo. && echo =============================== && echo ERROR: Script crashed or failed && echo =============================== && echo. && pause)"
 timeout /t 2 /nobreak >nul
 
-echo Starting Bird Analyzer in new window...
-start "Bird Analyzer" cmd /k "echo Bird Analyzer Window && echo. && cd /d "%~dp0scripts" && python pilot_analyze_captures_fixed.py --watch || (echo. && echo ERROR: Bird analyzer failed to start && echo. && pause)"
-timeout /t 2 /nobreak >nul
+echo Launching Bird Analyzer in new window...
+start "Bird Analyzer [DO NOT CLOSE]" cmd /k "cd /d "%~dp0scripts" && echo =============================== && echo BIRD ANALYZER && echo =============================== && echo. && echo Starting bird analysis... && echo Press Ctrl+C to stop && echo. && python pilot_analyze_captures_fixed.py --watch || (echo. && echo =============================== && echo ERROR: Script crashed or failed && echo =============================== && echo. && pause)"
+timeout /t 3 /nobreak >nul
 
-echo Bird detection scripts started in separate windows
+echo.
+echo Bird detection scripts launched successfully
+echo Check the two new windows that opened
+echo.
 
 REM Start web server for dashboard
 echo.
@@ -230,9 +281,13 @@ python -m http.server 8080
 REM If we get here, the server stopped
 echo.
 echo ================================
-echo Server stopped or failed to start
+echo Server Stopped
 echo ================================
 echo.
-echo Check the error messages above for details
+echo The HTTP server has stopped.
+echo.
+echo To restart:
+echo 1. Close the Bird Counter and Bird Analyzer windows
+echo 2. Run START_BIRD_TRACKER.cmd again
 echo.
 pause
