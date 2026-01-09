@@ -187,9 +187,13 @@ if "%OPENAI_API_KEY%"=="" (
 REM Install npm dependencies if needed
 cd /d "%~dp0"
 echo. >> "%LOGFILE%"
-echo Current directory: %CD% >> "%LOGFILE%"
+echo Returned to project directory: %CD% >> "%LOGFILE%"
+echo Returned to project directory: %CD%
+echo. >> "%LOGFILE%"
 echo.
-echo Current directory: %CD%
+
+echo Checking for package.json... >> "%LOGFILE%"
+echo Checking for package.json...
 if not exist "package.json" (
     echo ERROR: package.json not found >> "%LOGFILE%"
     echo ERROR: package.json not found
@@ -197,7 +201,16 @@ if not exist "package.json" (
     pause
     exit /b 1
 )
+echo package.json found >> "%LOGFILE%"
+echo package.json found
+echo. >> "%LOGFILE%"
+echo.
+
+echo Checking for node_modules... >> "%LOGFILE%"
+echo Checking for node_modules...
 if not exist "node_modules" (
+    echo node_modules not found, need to install >> "%LOGFILE%"
+    echo node_modules not found, need to install
     echo. >> "%LOGFILE%"
     echo [5/8] Installing npm dependencies (this may take a few minutes)... >> "%LOGFILE%"
     echo.
@@ -217,17 +230,28 @@ if not exist "node_modules" (
     echo npm dependencies installed successfully >> "%LOGFILE%"
     echo npm dependencies installed successfully
 ) else (
+    echo node_modules found >> "%LOGFILE%"
+    echo node_modules found
     echo [5/8] npm dependencies already installed >> "%LOGFILE%"
     echo [5/8] npm dependencies already installed
 )
+echo. >> "%LOGFILE%"
+echo.
 
 REM Create initial metrics.json if it doesn't exist
-echo. >> "%LOGFILE%"
 echo [6/8] Initializing metrics file... >> "%LOGFILE%"
-echo.
 echo [6/8] Initializing metrics file...
 cd /d "%~dp0"
+echo Checking public directory... >> "%LOGFILE%"
+echo Checking public directory...
+if not exist "public" (
+    echo Creating public directory... >> "%LOGFILE%"
+    echo Creating public directory...
+    mkdir public
+)
 if not exist "public\metrics.json" (
+    echo Creating metrics.json... >> "%LOGFILE%"
+    echo Creating metrics.json...
     echo {"total_visits":0,"visits":[],"species_counts":{}} > public\metrics.json
     echo Created initial metrics.json >> "%LOGFILE%"
     echo Created initial metrics.json
@@ -235,12 +259,16 @@ if not exist "public\metrics.json" (
     echo metrics.json already exists >> "%LOGFILE%"
     echo metrics.json already exists
 )
+echo. >> "%LOGFILE%"
+echo.
 
 REM Build the dashboard
-echo. >> "%LOGFILE%"
 echo [7/8] Building dashboard... >> "%LOGFILE%"
-echo.
 echo [7/8] Building dashboard...
+echo Running npm run build... >> "%LOGFILE%"
+echo Running npm run build...
+echo This may take 10-20 seconds... >> "%LOGFILE%"
+echo This may take 10-20 seconds...
 call npm run build >> "%LOGFILE%" 2>&1
 if errorlevel 1 (
     echo. >> "%LOGFILE%"
@@ -255,12 +283,14 @@ if errorlevel 1 (
 )
 echo Dashboard built successfully >> "%LOGFILE%"
 echo Dashboard built successfully
+echo. >> "%LOGFILE%"
+echo.
 
 REM Start the Python scripts in background
-echo. >> "%LOGFILE%"
 echo [8/9] Starting bird detection scripts... >> "%LOGFILE%"
-echo.
 echo [8/9] Starting bird detection scripts...
+echo Changing to scripts directory... >> "%LOGFILE%"
+echo Changing to scripts directory...
 cd /d "%~dp0scripts"
 echo Current scripts directory: %CD% >> "%LOGFILE%"
 echo Current scripts directory: %CD%
@@ -285,11 +315,14 @@ python pilot_bird_counter_fixed.py --help >nul 2>&1
 if errorlevel 1 (
     echo WARNING: Bird counter script may have issues >> "%LOGFILE%"
     echo WARNING: Bird counter script may have issues
+) else (
+    echo Bird counter script looks good >> "%LOGFILE%"
+    echo Bird counter script looks good
 )
-
 echo. >> "%LOGFILE%"
-echo Launching Bird Counter in new window... >> "%LOGFILE%"
 echo.
+
+echo Launching Bird Counter in new window... >> "%LOGFILE%"
 echo Launching Bird Counter in new window...
 start "Bird Counter [DO NOT CLOSE]" cmd /k "cd /d "%~dp0scripts" && echo =============================== && echo BIRD COUNTER && echo =============================== && echo. && echo Starting bird detection... && echo Press Ctrl+C to stop && echo. && python pilot_bird_counter_fixed.py || (echo. && echo =============================== && echo ERROR: Script crashed or failed && echo =============================== && echo. && pause)"
 timeout /t 2 /nobreak >nul
@@ -297,21 +330,22 @@ timeout /t 2 /nobreak >nul
 echo Launching Bird Analyzer in new window... >> "%LOGFILE%"
 echo Launching Bird Analyzer in new window...
 start "Bird Analyzer [DO NOT CLOSE]" cmd /k "cd /d "%~dp0scripts" && echo =============================== && echo BIRD ANALYZER && echo =============================== && echo. && echo Starting bird analysis... && echo Press Ctrl+C to stop && echo. && python pilot_analyze_captures_fixed.py --watch || (echo. && echo =============================== && echo ERROR: Script crashed or failed && echo =============================== && echo. && pause)"
+echo Waiting for scripts to initialize... >> "%LOGFILE%"
+echo Waiting for scripts to initialize...
 timeout /t 3 /nobreak >nul
 
-echo. >> "%LOGFILE%"
 echo Bird detection scripts launched successfully >> "%LOGFILE%"
-echo.
 echo Bird detection scripts launched successfully
+echo Check the two new windows that opened >> "%LOGFILE%"
 echo Check the two new windows that opened
 echo. >> "%LOGFILE%"
 echo.
 
 REM Start web server for dashboard
-echo. >> "%LOGFILE%"
 echo [9/9] Starting dashboard server... >> "%LOGFILE%"
-echo.
 echo [9/9] Starting dashboard server...
+echo Returning to project directory... >> "%LOGFILE%"
+echo Returning to project directory...
 cd /d "%~dp0"
 echo Dashboard directory: %CD% >> "%LOGFILE%"
 echo Dashboard directory: %CD%
