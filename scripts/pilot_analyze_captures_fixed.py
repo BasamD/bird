@@ -156,6 +156,36 @@ def load_openai_client() -> Tuple[Optional[any], str]:
         return None, key
 
 
+def validate_openai_api_key(client, api_key: str) -> bool:
+    """Test if the OpenAI API key is valid by making a simple request.
+
+    Returns:
+        bool: True if API key is valid, False otherwise
+    """
+    if not client or not api_key:
+        return False
+
+    try:
+        # Make a minimal API call to test the key
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": "test"}],
+            max_tokens=5
+        )
+        if log:
+            log.info("[OpenAI] API key validation successful")
+        return True
+    except Exception as e:
+        if log:
+            error_str = str(e)
+            if "401" in error_str or "Incorrect API key" in error_str or "invalid_api_key" in error_str:
+                log.error(f"[OpenAI] API KEY IS INVALID! Error: {error_str}")
+                log.error("[OpenAI] Please update your OPENAI_API_KEY in the .env file with a valid key from https://platform.openai.com/api-keys")
+            else:
+                log.error(f"[OpenAI] API key validation failed: {error_str}")
+        return False
+
+
 def normalize_species(name: str) -> str:
     if not name:
         return "unknown"
@@ -187,17 +217,50 @@ def load_metrics() -> dict:
     }
 
 
-def save_metrics(metrics: dict) -> None:
+def save_metrics(metrics: dict) -> bool:
+    """Save metrics to JSON file with validation.
+
+    Returns:
+        bool: True if save was successful and verified, False otherwise
+    """
     config.DASHBOARD_DIR.mkdir(parents=True, exist_ok=True)
     try:
-        with config.METRICS_FILE.open("w", encoding="utf-8") as f:
+        # Write to a temp file first
+        temp_file = config.METRICS_FILE.with_suffix('.json.tmp')
+        with temp_file.open("w", encoding="utf-8") as f:
             json.dump(metrics, f, indent=2)
+
+        # Verify the temp file was written correctly
+        with temp_file.open("r", encoding="utf-8") as f:
+            verification = json.load(f)
+            if verification.get("total_visits") != metrics.get("total_visits"):
+                raise ValueError("Metrics verification failed - data mismatch")
+
+        # Move temp file to final location (atomic operation)
+        shutil.move(str(temp_file), str(config.METRICS_FILE))
+
+        if log:
+            log.info(f"[metrics] saved successfully: {metrics.get('total_visits', 0)} visits, file: {config.METRICS_FILE}")
+        return True
     except Exception as e:
         if log:
-            log.warning(f"[metrics] failed to save metrics: {e}")
+            log.error(f"[metrics] FAILED to save metrics to {config.METRICS_FILE}: {e}\n{traceback.format_exc()}")
+        # Clean up temp file if it exists
+        try:
+            temp_file = config.METRICS_FILE.with_suffix('.json.tmp')
+            if temp_file.exists():
+                temp_file.unlink()
+        except:
+            pass
+        return False
 
 
-def write_dashboard_html(metrics: dict) -> None:
+def write_dashboard_html(metrics: dict) -> bool:
+    """Write dashboard HTML file with validation.
+
+    Returns:
+        bool: True if write was successful and verified, False otherwise
+    """
     config.DASHBOARD_DIR.mkdir(parents=True, exist_ok=True)
     total_visits = metrics.get("total_visits", 0)
     species_counts = metrics.get("species_counts", {})
@@ -261,11 +324,32 @@ def write_dashboard_html(metrics: dict) -> None:
 
     dashboard_file = config.DASHBOARD_DIR / "dashboard.html"
     try:
-        with dashboard_file.open("w", encoding="utf-8") as f:
+        # Write to temp file first
+        temp_file = dashboard_file.with_suffix('.html.tmp')
+        with temp_file.open("w", encoding="utf-8") as f:
             f.write(html)
+
+        # Verify file was written
+        if not temp_file.exists() or temp_file.stat().st_size == 0:
+            raise ValueError("Dashboard HTML file was not written or is empty")
+
+        # Move to final location (atomic operation)
+        shutil.move(str(temp_file), str(dashboard_file))
+
+        if log:
+            log.info(f"[dashboard] written successfully: {dashboard_file}")
+        return True
     except Exception as e:
         if log:
-            log.warning(f"[dashboard] failed to write dashboard: {e}")
+            log.error(f"[dashboard] FAILED to write dashboard to {dashboard_file}: {e}\n{traceback.format_exc()}")
+        # Clean up temp file if it exists
+        try:
+            temp_file = dashboard_file.with_suffix('.html.tmp')
+            if temp_file.exists():
+                temp_file.unlink()
+        except:
+            pass
+        return False
 
 
 def update_metrics(image_path: Path, species: str, summary: str, timestamp: datetime) -> None:
@@ -326,8 +410,18 @@ def update_metrics(image_path: Path, species: str, summary: str, timestamp: date
     metrics["total_visits"] = metrics.get("total_visits", 0) + 1
     counts[species_norm] = counts.get(species_norm, 0) + 1
     metrics["species_counts"] = counts
-    save_metrics(metrics)
-    write_dashboard_html(metrics)
+
+    # Save and validate
+    metrics_saved = save_metrics(metrics)
+    dashboard_written = write_dashboard_html(metrics)
+
+    if not metrics_saved or not dashboard_written:
+        error_msg = []
+        if not metrics_saved:
+            error_msg.append("metrics.json")
+        if not dashboard_written:
+            error_msg.append("dashboard.html")
+        raise RuntimeError(f"Failed to save data to: {', '.join(error_msg)}. Data may be lost!")
 
 
 def openai_analyze_image(
@@ -588,6 +682,17 @@ def main():
     client, key = load_openai_client()
     if client is None:
         log.warning("OpenAI disabled (OPENAI_API_KEY missing or OpenAI init failed)")
+    else:
+        # Validate API key at startup
+        if not validate_openai_api_key(client, key):
+            log.error("=" * 80)
+            log.error("CRITICAL: OpenAI API key validation failed!")
+            log.error("Bird species identification will NOT work.")
+            log.error("All birds will be marked as 'unknown'.")
+            log.error("Please fix your OPENAI_API_KEY in the .env file before continuing.")
+            log.error("=" * 80)
+            # Disable OpenAI to prevent repeated failures
+            client = None
 
     today = date.today().isoformat()
     daily_unique = 0
