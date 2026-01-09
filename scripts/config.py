@@ -21,7 +21,10 @@ RTSP_URL = os.getenv(
 
 MODEL_PATH = os.getenv("MODEL_PATH", "yolov8n.pt")
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+OPENAI_API_KEY = os.getenv(
+    "OPENAI_API_KEY",
+    "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"
+)
 
 CONF_THRESH = float(os.getenv("CONF_THRESH", "0.25"))
 ROI_NORM = tuple(map(float, os.getenv("ROI_NORM", "0.25,0.34,0.62,0.72").split(",")))
